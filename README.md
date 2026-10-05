@@ -1,6 +1,6 @@
 # Wappalyzer-CLI-on-Linux
 
-wappalyzer-next now uses Playwright's Chromium, so Firefox, geckodriver and the Mozilla repo are no longer needed.
+wappalyzer-next uses Playwright's Chromium, so Firefox, geckodriver and the Mozilla repo aren't needed.
 
 ## Step 1: Install pipx and tools (choose your distro)
 
@@ -49,18 +49,26 @@ source ~/.bashrc          # or: source ~/.zshrc
 
 ## Step 3: Download Playwright's Chromium (all distros)
 
+Run this as your normal user, without `sudo`. The browser is saved per user in `~/.cache/ms-playwright`, and `sudo` would put it in `/root/.cache` instead. Calling it through the venv's own Python makes sure the Chromium build matches the Playwright version Wappalyzer uses.
+
 ```bash
-~/.local/share/pipx/venvs/wappalyzer/bin/playwright install chromium
+~/.local/share/pipx/venvs/wappalyzer/bin/python -m playwright install chromium
 ```
 
-If that path doesn't exist, find your pipx venv folder with `pipx environment --value PIPX_LOCAL_VENVS` and use `<that folder>/wappalyzer/bin/playwright` instead.
+Verify the download. You should see a `chromium-XXXX` folder:
+
+```bash
+ls ~/.cache/ms-playwright/
+```
+
+If `~/.local/share/pipx/venvs` doesn't exist, find your pipx venv folder with `pipx environment --value PIPX_LOCAL_VENVS` and use `<that folder>/wappalyzer/bin/python` instead.
 
 ## Step 4: Install Chromium's system libraries (choose your distro)
 
 **Debian / Kali / Parrot / Ubuntu and derivatives**
 
 ```bash
-sudo ~/.local/share/pipx/venvs/wappalyzer/bin/playwright install-deps chromium
+sudo ~/.local/share/pipx/venvs/wappalyzer/bin/python -m playwright install-deps chromium
 ```
 
 **Fedora / RHEL / Rocky / AlmaLinux** (installing the system Chromium pulls in every library Playwright needs; on RHEL-family it comes from EPEL)
@@ -96,13 +104,24 @@ wappalyzer -i https://example.com --scan-type full     # most accurate, renders 
 wappalyzer -i urls.txt -t 10 -oJ results.json          # bulk scan, JSON output
 ```
 
-## Notes
+## Troubleshooting
+
+**"Executable doesn't exist at ~/.cache/ms-playwright/chromium-XXXX":** The downloaded Chromium build doesn't match, or it was installed as a different user. Clear it and reinstall as your normal user:
+
+```bash
+rm -rf ~/.cache/ms-playwright
+~/.local/share/pipx/venvs/wappalyzer/bin/python -m playwright install chromium
+```
+
+**After upgrading Wappalyzer** (`pipx upgrade wappalyzer`): Playwright may want a newer Chromium build. Rerun Step 3.
+
+**Multiple users:** Each user who runs Wappalyzer needs to install the CLI (Step 2) and download Chromium (Step 3) under their own account.
 
 **Alpine:** Playwright's bundled Chromium is built for glibc and won't run on Alpine's musl. Use `--scan-type fast` there, or run the tool in a Debian or Ubuntu container.
 
 **No pipx package:** Install it with `python3 -m pip install --user pipx`. If you get an "externally-managed-environment" error, add `--break-system-packages`.
 
-**Optional cleanup on your machine:** If you want to drop what the old Firefox method installed, run:
+## Optional cleanup from the old Firefox method
 
 ```bash
 sudo rm -f /usr/local/bin/geckodriver

@@ -30,8 +30,10 @@ Pin-Priority: 1000
 ' | sudo tee /etc/apt/preferences.d/mozilla
 
 sudo apt update
-sudo apt install -y firefox
+sudo apt install -y --allow-downgrades firefox
 ```
+
+`--allow-downgrades` is needed because Ubuntu's Snap stub has a higher-looking version number (`1:1snap1...`) than Mozilla's real Firefox, so apt treats the switch as a downgrade.
 
 **Fedora**
 

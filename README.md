@@ -1,106 +1,45 @@
 # Wappalyzer-CLI-on-Linux
 
-The Firefox and pipx install differs by distro. The geckodriver and Wappalyzer steps are the same everywhere.
+wappalyzer-next now uses Playwright's Chromium, so Firefox, geckodriver and the Mozilla repo are no longer needed.
 
-## Step 1: Firefox, pipx and tools (choose your distro)
+## Step 1: Install pipx and tools (choose your distro)
 
-**Debian / Kali / Parrot**
-
-```bash
-sudo apt update
-sudo apt install -y firefox-esr pipx xdg-utils curl wget tar
-```
-
-**Ubuntu / Linux Mint / Pop!_OS / Zorin / elementary**
-
-Ubuntu's `firefox` is a Snap stub that conflicts with geckodriver, so install Mozilla's `.deb` instead:
+**Debian / Kali / Parrot / Ubuntu / Linux Mint / Pop!_OS / Zorin / elementary**
 
 ```bash
 sudo apt update
-sudo apt install -y pipx xdg-utils curl wget tar
-sudo snap remove firefox 2>/dev/null
-
-sudo install -d -m 0755 /etc/apt/keyrings
-wget -q https://packages.mozilla.org/apt/repo-signing-key.gpg -O- | sudo tee /etc/apt/keyrings/packages.mozilla.org.asc > /dev/null
-echo "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.asc] https://packages.mozilla.org/apt mozilla main" | sudo tee /etc/apt/sources.list.d/mozilla.list > /dev/null
-echo '
-Package: *
-Pin: origin packages.mozilla.org
-Pin-Priority: 1000
-' | sudo tee /etc/apt/preferences.d/mozilla
-
-sudo apt update
-sudo apt install -y --allow-downgrades firefox
+sudo apt install -y pipx curl
 ```
-
-`--allow-downgrades` is needed because Ubuntu's Snap stub has a higher-looking version number (`1:1snap1...`) than Mozilla's real Firefox, so apt treats the switch as a downgrade.
 
 **Fedora**
 
 ```bash
-sudo dnf install -y firefox pipx xdg-utils curl wget tar
+sudo dnf install -y pipx curl
 ```
 
 **RHEL / Rocky / AlmaLinux / CentOS Stream** (pipx comes from EPEL)
 
 ```bash
 sudo dnf install -y epel-release
-sudo dnf install -y firefox pipx xdg-utils curl wget tar
+sudo dnf install -y pipx curl
 ```
 
 **Arch / Manjaro / EndeavourOS / Garuda**
 
 ```bash
-sudo pacman -Syu --needed firefox python-pipx xdg-utils curl wget tar geckodriver
+sudo pacman -Syu --needed python-pipx curl
 ```
-
-geckodriver is in Arch's repos, so skip Step 2.
 
 **openSUSE (Tumbleweed / Leap)**
 
 ```bash
 sudo zypper refresh
-sudo zypper install -y firefox python3-pipx xdg-utils curl wget tar
+sudo zypper install -y python3-pipx curl
 ```
 
 If `python3-pipx` isn't found, run `zypper search pipx` and install the versioned name it shows, such as `python311-pipx`.
 
-**Alpine**
-
-```bash
-sudo apk add firefox py3-pipx xdg-utils curl wget tar geckodriver
-```
-
-geckodriver is in Alpine's repos (Mozilla's binary doesn't run on musl), so skip Step 2.
-
-**Verify Firefox**
-
-```bash
-firefox --version
-```
-
-## Step 2: geckodriver (all distros except Arch and Alpine)
-
-This detects x86_64 or ARM64 automatically:
-
-```bash
-ARCH=$(uname -m)
-case "$ARCH" in
-  x86_64)  GECKO_ARCH="linux64" ;;
-  aarch64) GECKO_ARCH="linux-aarch64" ;;
-  *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
-esac
-
-GECKO_VER=$(curl -s https://api.github.com/repos/mozilla/geckodriver/releases/latest | grep -oP '"tag_name": "\K[^"]+')
-wget https://github.com/mozilla/geckodriver/releases/download/${GECKO_VER}/geckodriver-${GECKO_VER}-${GECKO_ARCH}.tar.gz
-tar -xzf geckodriver-${GECKO_VER}-${GECKO_ARCH}.tar.gz
-sudo mv geckodriver /usr/local/bin/
-sudo chmod +x /usr/local/bin/geckodriver
-rm geckodriver-${GECKO_VER}-${GECKO_ARCH}.tar.gz
-geckodriver --version
-```
-
-## Step 3: Wappalyzer CLI (all distros)
+## Step 2: Install the Wappalyzer CLI (all distros)
 
 ```bash
 pipx install wappalyzer
@@ -108,7 +47,41 @@ pipx ensurepath
 source ~/.bashrc          # or: source ~/.zshrc
 ```
 
-## Step 4: Test it
+## Step 3: Download Playwright's Chromium (all distros)
+
+```bash
+~/.local/share/pipx/venvs/wappalyzer/bin/playwright install chromium
+```
+
+If that path doesn't exist, find your pipx venv folder with `pipx environment --value PIPX_LOCAL_VENVS` and use `<that folder>/wappalyzer/bin/playwright` instead.
+
+## Step 4: Install Chromium's system libraries (choose your distro)
+
+**Debian / Kali / Parrot / Ubuntu and derivatives**
+
+```bash
+sudo ~/.local/share/pipx/venvs/wappalyzer/bin/playwright install-deps chromium
+```
+
+**Fedora / RHEL / Rocky / AlmaLinux** (installing the system Chromium pulls in every library Playwright needs; on RHEL-family it comes from EPEL)
+
+```bash
+sudo dnf install -y chromium
+```
+
+**Arch and derivatives**
+
+```bash
+sudo pacman -S --needed chromium
+```
+
+**openSUSE**
+
+```bash
+sudo zypper install -y chromium
+```
+
+## Step 5: Test it
 
 ```bash
 wappalyzer -i https://example.com
@@ -123,4 +96,17 @@ wappalyzer -i https://example.com --scan-type full     # most accurate, renders 
 wappalyzer -i urls.txt -t 10 -oJ results.json          # bulk scan, JSON output
 ```
 
-If your distro doesn't package pipx, install it with `python3 -m pip install --user pipx`. On distros that block this with an "externally-managed-environment" error, add `--break-system-packages`.
+## Notes
+
+**Alpine:** Playwright's bundled Chromium is built for glibc and won't run on Alpine's musl. Use `--scan-type fast` there, or run the tool in a Debian or Ubuntu container.
+
+**No pipx package:** Install it with `python3 -m pip install --user pipx`. If you get an "externally-managed-environment" error, add `--break-system-packages`.
+
+**Optional cleanup on your machine:** If you want to drop what the old Firefox method installed, run:
+
+```bash
+sudo rm -f /usr/local/bin/geckodriver
+sudo apt remove --purge firefox        # only if you don't use Firefox otherwise
+sudo rm -f /etc/apt/sources.list.d/mozilla.list /etc/apt/preferences.d/mozilla /etc/apt/keyrings/packages.mozilla.org.asc
+sudo apt update
+```
